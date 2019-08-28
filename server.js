@@ -80,8 +80,16 @@ const HairType = new GraphQLObjectType({
 		stylistId: { type: GraphQLNonNull(GraphQLInt)},
 		stylist: {
 			type: StylistType,
-			resolve: (hairs) => {
-				return stylists.find(stylist => stylist.id === hairs.stylistId)
+			resolve: (parentVal,args) => {
+				console.log(parentVal)
+				const query = `SELECT * FROM hair_stylists WHERE id=${parentVal.stylist_id}`
+				return db.one(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
 			}
 		}
 	})
@@ -125,7 +133,16 @@ const RootQueryType = new GraphQLObjectType({
 		stylists: {
 			type: new GraphQLList(StylistType),
 			description: 'List of hair stylists',
-			resolve: () => stylists
+			resolve() {
+				const query = `SELECT * FROM hair_stylists`
+				return db.any(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
 		},
 		stylist: {
 			type: StylistType,
@@ -133,7 +150,16 @@ const RootQueryType = new GraphQLObjectType({
 			args: {
 				id: {type: GraphQLInt},
 			},
-			resolve: (parent,args) => stylists.find(stylist => stylist.id === args.id)
+			resolve(parent, args) {
+				const query = `SELECT * FROM hair_stylists WHERE id=${args.id}`;
+				return db.one(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
 		}
 	})
 })
