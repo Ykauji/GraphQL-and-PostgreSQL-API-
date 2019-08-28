@@ -1,3 +1,4 @@
+// I should hide this later! PostgreSQL connection. 
 const connectionString = "postgres://yohjikusakabe:potato123@localhost:5432/hairdb";
 
 const initOptions = {
@@ -26,7 +27,7 @@ db.connect()
         console.log('ERROR:', error.message || error);
     });
 
-
+// Setting up express and graphQL dependencies
 const express = require('express')
 const expressGraphQL = require('express-graphql')
 const app = express()
@@ -39,19 +40,32 @@ const {
 	GraphQLNonNull,
 } = require('graphql')
 
-const hairs = [ 
-	{id: 1, name: 'short men asian', image: 'potato', description: 'bob', stylistId: 1 },
-	{id: 2, name: 'short femen asian', image: 'totato', description: 'sob', stylistId: 1 },
-	{id: 3, name: 'short remen asian', image: 'yotato', description: 'pob', stylistId: 1 },
-	{id: 4, name: 'short jemen asian', image: 'aotato', description: 'tob', stylistId: 1 }
-]
+// Salon object, add later. {1,'bob salon','picture.jpg','good salon'}
+const SalonType = new GraphQLObjectType({
+	name: 'salon',
+	description: 'This is the salon object',
+	fields: () => ({
+		id: {type: GraphQLNonNull(GraphQLInt)},
+		name: { type: GraphQLNonNull(GraphQLString)},
+		image: { type: GraphQLNonNull(GraphQLString)},
+		description: { type: GraphQLString}, 
+		stylists: { 
+			type: GraphQLList(StylistType),
+			resolve: (parent,args) => {
+				const query = `SELECT * FROM hair_stylists WHERE salon_id=${parent.id}`
+				return db.any(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
+		}
+	})
+}) 
 
-const stylists = [
-{id: 1, name: 'Yohji Kusakabe', image: 'potato', description: 'tomato'},
-{id: 2, name: 'Jing Jiang', image: 'is a', description: 'fool'},
-{id: 3, name: 'Jonathan Hobobo', image: 'asda', description: 'asdmf'},
-]
-
+// Stylist object with hairstyles as "ref"
 const StylistType = new GraphQLObjectType({
 	name: 'stylist',
 	description: 'This is the hair stylist object', 
@@ -62,12 +76,21 @@ const StylistType = new GraphQLObjectType({
 		description: { type: GraphQLString}, 
 		hairstyles: {
 			type: GraphQLList(HairType),
-			resolve: (stylist) => {
-				return hairs.filter(hair => hair.stylistId === stylist.id)
+			// parent = currentObj, args is the graphql parameters. should return list. 
+			resolve: (parent,args) => {
+				const query = `SELECT * FROM hair_styles WHERE stylist_id=${parent.id}`
+				return db.any(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
 			}
 		}
 	})
 })
+
 
 const HairType = new GraphQLObjectType({
 	name: 'hairstyles',
@@ -78,11 +101,12 @@ const HairType = new GraphQLObjectType({
 		image: { type: GraphQLNonNull(GraphQLString)},
 		description: { type: GraphQLString}, 
 		stylistId: { type: GraphQLNonNull(GraphQLInt)},
+		likes: {type: GraphQLInt},
 		stylist: {
 			type: StylistType,
 			resolve: (parentVal,args) => {
-				console.log(parentVal)
 				const query = `SELECT * FROM hair_stylists WHERE id=${parentVal.stylist_id}`
+				// should return one value. 
 				return db.one(query)
 					.then(data => {
 						return data;
@@ -95,9 +119,12 @@ const HairType = new GraphQLObjectType({
 	})
 })
 
+// Our root query! should refactor into multiple functions. 
 const RootQueryType = new GraphQLObjectType({
+	// Start queries with Query { x...}
 	name: 'Query',
 	description: 'Root Query',
+	// Each field is a nested query. Query { hairstyles..{name id ...}}
 	fields: () => ({
 		hairstyles: {
 			type: new GraphQLList(HairType),
@@ -160,14 +187,29 @@ const RootQueryType = new GraphQLObjectType({
 						return 'The error is',err;
 					});
 			}
+		},
+		salons : {
+			type: new GraphQLList(SalonType), 
+			description: 'List of all salons',
+			resolve() {
+				const query = `SELECT * FROM hair_salons`
+				return db.any(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
 		}
 	})
 })
 
+// Set our schema to be our RootQuery.
 const schema = new GraphQLSchema({
 	query: RootQueryType,
 })
-
+// Set up express w/ our schema and graphiql which is a visual framework for graphQL.
 app.use('/graphql', expressGraphQL({
 	schema: schema,
 	graphiql: true,
