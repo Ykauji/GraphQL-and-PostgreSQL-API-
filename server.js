@@ -1,3 +1,32 @@
+const connectionString = "postgres://yohjikusakabe:potato123@localhost:5432/hairdb";
+
+const initOptions = {
+    // global event notification;
+    error(error, e) {
+        if (e.cn) {
+            // A connection-related error;
+            //
+            // Connections are reported back with the password hashed,
+            // for safe errors logging, without exposing passwords.
+            console.log('CN:', e.cn);
+            console.log('EVENT:', error.message || error);
+        }
+    }
+};
+
+const pgp = require('pg-promise')(initOptions);
+const db = pgp(connectionString);
+
+db.connect()
+    .then(obj => {
+    	console.log("success!")
+        obj.done(); // success, release the connection;
+    })
+    .catch(error => {
+        console.log('ERROR:', error.message || error);
+    });
+
+
 const express = require('express')
 const expressGraphQL = require('express-graphql')
 const app = express()
@@ -65,7 +94,16 @@ const RootQueryType = new GraphQLObjectType({
 		hairstyles: {
 			type: new GraphQLList(HairType),
 			description: 'List of all hairstyles',
-			resolve: () => hairs
+			resolve() {
+				const query = `SELECT * FROM hair_styles`
+				return db.any(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
 		},
 		hairstyle: {
 			type: HairType,
@@ -73,7 +111,16 @@ const RootQueryType = new GraphQLObjectType({
 			args: {
 				id: {type: GraphQLInt}
 			},
-			resolve: (parent, args) => hairs.find(hair => hair.id === args.id)
+			resolve(parent, args) {
+				const query = `SELECT * FROM hair_styles WHERE id=${args.id}`;
+				return db.one(query)
+					.then(data => {
+						return data;
+					})
+					.catch(err => {
+						return 'The error is',err;
+					});
+			}
 		},
 		stylists: {
 			type: new GraphQLList(StylistType),
@@ -87,7 +134,7 @@ const RootQueryType = new GraphQLObjectType({
 				id: {type: GraphQLInt},
 			},
 			resolve: (parent,args) => stylists.find(stylist => stylist.id === args.id)
-		},
+		}
 	})
 })
 
