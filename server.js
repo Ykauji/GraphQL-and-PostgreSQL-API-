@@ -1,6 +1,6 @@
 // I should hide this later! PostgreSQL connection. 
 const connectionString = "postgres://yohjikusakabe:potato123@localhost:5432/hairdb";
-
+const cors = require('cors')
 const initOptions = {
     // global event notification;
     error(error, e) {
@@ -38,7 +38,37 @@ const {
 	GraphQLList,
 	GraphQLInt,
 	GraphQLNonNull,
+	QueryArguments,
 } = require('graphql')
+
+// Allow cross-origin
+app.use(cors())
+
+// Helper function to see if obj is empty.
+function isEmpty(obj) {
+    for(var key in obj) {
+        if(obj.hasOwnProperty(key))
+            return false;
+    }
+    return true;
+}
+// Kinda hacky? Look into sequelize if you're not lazy! Concat SQL query. 
+function buildHairstyleSQLQuery(table,arguments) {
+	console.log("building!");
+	if (isEmpty(arguments)) {
+		return "SELECT * FROM " + table;
+	}
+
+	let query = "SELECT * FROM " + table + " WHERE";
+	for (var key in arguments) {
+		if (arguments.hasOwnProperty) {
+			query += (" " + key + "=")
+			const value = (typeof(arguments[key] === "string")) ? ("'" + arguments[key] + "'") : String(arguments[key])
+			query += (value + " AND")
+		}
+	}
+	return query.substring(0,query.length-4);
+}
 
 // Salon object, add later. {1,'bob salon','picture.jpg','good salon'}
 const SalonType = new GraphQLObjectType({
@@ -59,7 +89,7 @@ const SalonType = new GraphQLObjectType({
 					})
 					.catch(err => {
 						return 'The error is',err;
-					});
+					});	
 			}
 		}
 	})
@@ -74,6 +104,9 @@ const StylistType = new GraphQLObjectType({
 		name: { type: GraphQLNonNull(GraphQLString)},
 		image: { type: GraphQLNonNull(GraphQLString)},
 		description: { type: GraphQLString}, 
+		location: { type: GraphQLString },
+		phone: { type: GraphQLString }, 
+		email: { type: GraphQLString },
 		hairstyles: {
 			type: GraphQLList(HairType),
 			// parent = currentObj, args is the graphql parameters. should return list. 
@@ -91,7 +124,6 @@ const StylistType = new GraphQLObjectType({
 	})
 })
 
-
 const HairType = new GraphQLObjectType({
 	name: 'hairstyles',
 	description: 'This is a hairstyle!',
@@ -102,6 +134,11 @@ const HairType = new GraphQLObjectType({
 		description: { type: GraphQLString}, 
 		stylistId: { type: GraphQLNonNull(GraphQLInt)},
 		likes: {type: GraphQLInt},
+		length: {type: GraphQLString},
+		gender: {type: GraphQLString}, 
+		thickness: {type: GraphQLString},
+		color: {type: GraphQLString},
+		perm: {type: GraphQLString},
 		stylist: {
 			type: StylistType,
 			resolve: (parentVal,args) => {
@@ -128,16 +165,44 @@ const RootQueryType = new GraphQLObjectType({
 	fields: () => ({
 		hairstyles: {
 			type: new GraphQLList(HairType),
-			description: 'List of all hairstyles',
-			resolve() {
-				const query = `SELECT * FROM hair_styles`
-				return db.any(query)
-					.then(data => {
-						return data;
-					})
-					.catch(err => {
-						return 'The error is',err;
-					});
+			description: 'Query all hairstyles, parameters={name,length,gender,thickness,color,perm}',
+			args: {
+				id: {type: GraphQLInt},
+				name: {type: GraphQLString},
+				length: {type: GraphQLString},
+				gender: {type: GraphQLString}, 
+				thickness: {type: GraphQLString}, 
+				color: {type: GraphQLString}, 
+				perm: {type: GraphQLString}, 
+			},
+			resolve(parent,args) {
+				console.log(args)
+				if (isEmpty(args)) {
+					const query = `SELECT * FROM hair_styles`
+					return db.any(query)
+						.then(data => {
+							return data;
+						})
+						.catch(err => {
+							return 'The error is',err;
+						});
+				} else {
+					const query = `SELECT * FROM hair_styles WHERE (IS NULL ${args.id} OR id=${args.id}) AND 
+					(IS NULL ${args.name} OR name=${args.name})
+					`;
+
+					const test = buildHairstyleSQLQuery("hair_styles",args);
+					console.log(test)
+					return db.any(test)
+						.then(data => {
+							return data;
+						})
+						.catch(err => {
+							return 'The error is',err;
+						});
+				}
+
+				
 			}
 		},
 		hairstyle: {
@@ -145,6 +210,7 @@ const RootQueryType = new GraphQLObjectType({
 			description: 'Get hairstyle by Id',
 			args: {
 				id: {type: GraphQLInt}
+				
 			},
 			resolve(parent, args) {
 				const query = `SELECT * FROM hair_styles WHERE id=${args.id}`;
