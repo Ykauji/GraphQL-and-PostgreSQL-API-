@@ -1,6 +1,8 @@
-// I should hide this later! PostgreSQL connection. 
-const connectionString = "postgres://yohjikusakabe:potato123@localhost:5432/hairdb";
 const cors = require('cors')
+// Set up env variables
+const dotenv = require('dotenv')
+dotenv.config();
+
 const initOptions = {
     // global event notification;
     error(error, e) {
@@ -14,9 +16,17 @@ const initOptions = {
         }
     }
 };
+// Config using .env
+const config = {
+	host: process.env.POSTGRES_HOST,
+    port: process.env.POSTGRES_PORT,
+    database: process.env.POSTGRES_DB,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+}
 
 const pgp = require('pg-promise')(initOptions);
-const db = pgp(connectionString);
+const db = pgp(config);
 
 db.connect()
     .then(obj => {
@@ -52,7 +62,7 @@ function isEmpty(obj) {
     }
     return true;
 }
-// Kinda hacky? Look into sequelize if you're not lazy! Concat SQL query. 
+// Kinda hacky? Look into sequelize if you're not lazy! Concat SQL query. Can I run this client-side?
 function buildHairstyleSQLQuery(table,arguments) {
 	console.log("building!");
 	if (isEmpty(arguments)) {
@@ -181,25 +191,22 @@ const RootQueryType = new GraphQLObjectType({
 					const query = `SELECT * FROM hair_styles`
 					return db.any(query)
 						.then(data => {
-							return data;
+							return data
 						})
 						.catch(err => {
 							return 'The error is',err;
-						});
+						})
 				} else {
-					const query = `SELECT * FROM hair_styles WHERE (IS NULL ${args.id} OR id=${args.id}) AND 
-					(IS NULL ${args.name} OR name=${args.name})
-					`;
-
+				
 					const test = buildHairstyleSQLQuery("hair_styles",args);
 					console.log(test)
 					return db.any(test)
 						.then(data => {
-							return data;
+							return data
 						})
 						.catch(err => {
 							return 'The error is',err;
-						});
+						})
 				}
 
 				
@@ -210,17 +217,16 @@ const RootQueryType = new GraphQLObjectType({
 			description: 'Get hairstyle by Id',
 			args: {
 				id: {type: GraphQLInt}
-				
 			},
 			resolve(parent, args) {
 				const query = `SELECT * FROM hair_styles WHERE id=${args.id}`;
 				return db.one(query)
 					.then(data => {
-						return data;
+						return data
 					})
 					.catch(err => {
-						return 'The error is',err;
-					});
+						return 'The error is',err
+					})
 			}
 		},
 		stylists: {
@@ -230,11 +236,11 @@ const RootQueryType = new GraphQLObjectType({
 				const query = `SELECT * FROM hair_stylists`
 				return db.any(query)
 					.then(data => {
-						return data;
+						return data
 					})
 					.catch(err => {
 						return 'The error is',err;
-					});
+					})
 			}
 		},
 		stylist: {
@@ -247,11 +253,11 @@ const RootQueryType = new GraphQLObjectType({
 				const query = `SELECT * FROM hair_stylists WHERE id=${args.id}`;
 				return db.one(query)
 					.then(data => {
-						return data;
+						return data
 					})
 					.catch(err => {
 						return 'The error is',err;
-					});
+					})
 			}
 		},
 		salons : {
@@ -261,11 +267,11 @@ const RootQueryType = new GraphQLObjectType({
 				const query = `SELECT * FROM hair_salons`
 				return db.any(query)
 					.then(data => {
-						return data;
+						return data
 					})
 					.catch(err => {
 						return 'The error is',err;
-					});
+					})
 			}
 		}
 	})
@@ -281,3 +287,5 @@ app.use('/graphql', expressGraphQL({
 	graphiql: true,
 }))
 app.listen(5000., () => console.log('server running!'))
+
+
