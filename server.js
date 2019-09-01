@@ -277,9 +277,54 @@ const RootQueryType = new GraphQLObjectType({
 	})
 })
 
+const RootMutation = new GraphQLObjectType({
+	name: "RootMutationType", 
+	type: "Mutation", 
+	fields: {
+		addHairStyle: {
+			type: HairType, 
+			args: {
+				name: { type: GraphQLNonNull(GraphQLString)},
+				image: { type: GraphQLNonNull(GraphQLString)},
+				description: { type: GraphQLString}, 
+				stylistId: { type: GraphQLNonNull(GraphQLInt)},
+				likes: {type: GraphQLInt},
+				length: {type: GraphQLString},
+				gender: {type: GraphQLString}, 
+				thickness: {type: GraphQLString},
+				color: {type: GraphQLString},
+				perm: {type: GraphQLString},
+			}, 
+			resolve(parentVal,args) {
+				const query = `INSERT INTO hair_styles(name,image,description,stylist_id,likes,length,gender,thickness,color,perm) VALUES ($1, $2, $3, $4,$5,$6,$7,$8,$9,$10) RETURNING name`;
+				const values = [ 
+					args.name,
+					args.image,
+					args.description,
+					args.stylistId,
+					args.likes, 
+					args.length,
+					args.gender,
+					args.thickness,
+					args.color,
+					args.perm
+				];
+
+				return db
+					.one(query,values) 
+					.then(res => res) 
+					.catch(err => err);
+
+			}
+		}
+	}
+});
+
+
 // Set our schema to be our RootQuery.
 const schema = new GraphQLSchema({
 	query: RootQueryType,
+	mutation: RootMutation,
 })
 // Set up express w/ our schema and graphiql which is a visual framework for graphQL.
 app.use('/graphql', expressGraphQL({
@@ -289,3 +334,8 @@ app.use('/graphql', expressGraphQL({
 app.listen(5000., () => console.log('server running!'))
 
 
+// Refactor!
+exports.db = db;
+exports.HairType = HairType
+exports.SalonType = SalonType
+exports.StylistType = StylistType
