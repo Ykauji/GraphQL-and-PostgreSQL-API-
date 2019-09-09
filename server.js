@@ -17,10 +17,9 @@ const initOptions = {
     }
 };
 // Check dev or producition.
-console.log(process.env.NODE_ENV)
 const env = process.env.NODE_ENV || 'development';
 // Config using .env
-const config = {
+let config = {
 	host: process.env.POSTGRES_HOST,
     port: process.env.POSTGRES_PORT,
     database: process.env.POSTGRES_DB,
