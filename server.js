@@ -16,6 +16,9 @@ const initOptions = {
         }
     }
 };
+// Check dev or producition.
+console.log(process.env.NODE_ENV)
+const env = process.env.NODE_ENV || 'development';
 // Config using .env
 const config = {
 	host: process.env.POSTGRES_HOST,
@@ -23,6 +26,16 @@ const config = {
     database: process.env.POSTGRES_DB,
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,
+}
+
+if (env !== 'development') {
+	console.log('NOT IN DEVELOPMENT!')
+	config = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: true
+    };
+} else {
+	console.log('IN DEVELOPMENT!')
 }
 
 const pgp = require('pg-promise')(initOptions);
@@ -134,6 +147,16 @@ const StylistType = new GraphQLObjectType({
 	})
 })
 
+const ImageType = new GraphQLObjectType({
+	name: 'images', 
+	description: 'This objects holds the images for hair_styles',
+	fields: () => ({
+		id: {type: GraphQLNonNull(GraphQLInt)},
+		hair_id: {type: GraphQLNonNull(GraphQLInt)}, 
+		hair_url: {type: GraphQLNonNull(GraphQLString)},
+	})
+})
+
 const HairType = new GraphQLObjectType({
 	name: 'hairstyles',
 	description: 'This is a hairstyle!',
@@ -162,7 +185,20 @@ const HairType = new GraphQLObjectType({
 						return 'The error is',err;
 					});
 			}
-		}
+		},
+		images: {
+			type: new GraphQLList(ImageType),
+			resolve: (parentVal,args) => {
+				const query = `SELECT * FROM hair_images WHERE hair_id=${parentVal.id}`
+				return db.any(query) 
+					.then(data => {
+						return data;
+					}) 
+					.catch(err => {
+						return 'The error is',err;
+					})
+			}
+		},
 	})
 })
 
@@ -197,7 +233,6 @@ const RootQueryType = new GraphQLObjectType({
 							return 'The error is',err;
 						})
 				} else {
-				
 					const test = buildHairstyleSQLQuery("hair_styles",args);
 					console.log(test)
 					return db.any(test)
@@ -315,6 +350,34 @@ const RootMutation = new GraphQLObjectType({
 					.then(res => res) 
 					.catch(err => err);
 
+			}
+		},
+		addLike: {
+			type: HairType,
+			args: {
+				id: { type: GraphQLNonNull(GraphQLInt)},
+			},
+			resolve(parentVal,args) {
+				const query = `UPDATE hair_styles SET likes = likes + 1 WHERE id=${args.id}`
+
+				return db 
+					.one(query)
+					.then(res => res) 
+					.catch(err => err);
+			}
+		},
+		subtractLike: {
+			type: HairType,
+			args: {
+				id: { type: GraphQLNonNull(GraphQLInt)},
+			},
+			resolve(parentVal,args) {
+				const query = `UPDATE hair_styles SET likes = likes - 1 WHERE id=${args.id}`
+
+				return db 
+					.one(query)
+					.then(res => res) 
+					.catch(err => err);
 			}
 		}
 	}
